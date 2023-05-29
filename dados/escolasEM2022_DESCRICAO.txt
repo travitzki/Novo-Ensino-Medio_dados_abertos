@@ -1,0 +1,13 @@
+Tabela com 29.413 linhas e 104 colunas.
+
+Contém todas as escolas de Ensino Médio regular, em funcionamento, presentes no Censo Escolar 2022.
+
+Cada linha é uma escola e as colunas incluem algumas variáveis dos microdados do Censo e também indicadores educacionais, todos publicamente disponíveis no portal do INEP.
+
+Indicadores educacionais:
+- taxas de rendimento
+- nível socioeconomico
+- adequação da formação docente
+- regularidade docente
+- esforço docente
+- complexidade da gestão
