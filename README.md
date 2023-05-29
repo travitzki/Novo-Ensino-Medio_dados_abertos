@@ -1,10 +1,13 @@
-# Novo Ensino Médio: dados abertos e estudos
-Espaço colaborativo para disponibilização de dados abertos relativos à Reforma do Ensino Médio. O objetivo é contribuir para o debate atual (2023) com evidências relevantes e claras, que possam ser reproduzidas por outros. 
+# Novo Ensino Médio: dados abertos para subsidiar estudos
+Espaço colaborativo para disponibilização de dados abertos relativos à Reforma do Ensino Médio. O objetivo é contribuir para o debate atual (2023) com evidências relevantes e claras, que possam ser reproduzidas por outros.
+
 
 # Dados abertos
+
 1. **Escolas de Ensino Médio 2022**: Tabela em que cada linha é uma das 29.413 escolas com Ensino Médio regular no Censo Escolar, e as colunas incluem algumas variáveis dos microdados do Censo e também indicadores educacionais, todos publicamente disponíveis no portal do INEP. [[clique para baixar]](./dados/escolasEM2022.csv.gz)
 
-# Estudos usando esses dados
+# Estudos utilizando esses dados
+
 <table border="1" width="80%" style="border-color:#030782;border-collapse:separate;overflow:hidden;border-radius:10px;"> 
 <tr>
 <td>
