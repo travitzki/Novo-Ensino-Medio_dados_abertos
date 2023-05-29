@@ -1,0 +1,249 @@
+---
+title: "Abandono escolar nas redes estaduais: evidências para o debate sobre o Novo Ensino Médio"
+author: "Rodrigo Travitzki"
+date: "2023-05-25"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: readable
+---
+
+```{=html}
+<style>
+h1 {
+  color:#030782;
+}
+</style>
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Achados principais
+
+-   Os fatores mais associados ao abandono escolar são o *nível socioeconômico dos alunos* e o *estado* (Unidade Federativa)
+-   O *Ensino à Distância (EAD)* se concentra em São Paulo e tende a **aumentar o abandono escolar**, mesmo controlando efeito do nível socioeconômico e outras variáveis. Esta é uma clara evidência contra um aspecto importante do Novo Ensino Médio, que é o estímulo à EAD.
+- *Escolas de tempo integral* (ao menos 7h por dia) em geral apresentam **menor abandono escolar**, mesmo controlando efeito do estado, nível socioeconômico e outras variáveis. Esta é uma evidência a favor de um ponto importante do Novo Ensino Médio - o tempo integral - cuja origem na verdade é a meta 6 do [PNE](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13005.htm) de 2014.
+-   A *adequação da formação docente* também é um fator que tende a **reduzir o abandono escolar**. Esta pode ser considerada uma evidência contra o "notório saber" como qualificação para a função de professor, como propõe o Novo Ensino Médio.
+
+# Preparação do dados
+
+Foi utilizada a base de dados de escolas de Ensino Médio, disponibilizada neste repositório, que junta dados do Censo Escolar 2022 com indicadores educacionais do INEP.
+
+Neste estudo, incluímos apenas as escolas estaduais, que são 18.556 no total. De todas as variáveis disponíveis, selecionamos 29 candidatas a variável preditora do abandono escolar, a serem testadas na modelagem estatística. Maiores detalhes no código (clique no botão à direita).
+
+Abaixo podemos ver algumas dessas variáveis e os respectivos percentuais relativos ao Brasil.
+
+```{=html}
+<p style="text-align:right"> <em> clique para ver o código </em> </p>
+```
+```{r eval=TRUE, message=FALSE}
+library(tidyverse)
+library(sjPlot)
+library(SignifReg)
+# library(reactable)
+library(formattable)
+library(knitr)
+library(kableExtra)
+# library(bslib)
+# bslib::bs_theme()
+
+ee=read_csv2('../dados/escolasEM2022.csv.gz')
+
+# criar variaveis ------------------
+
+ee=ee %>% 
+  mutate(tempo_integral = QT_MAT_MED_INT / QT_MAT_MED) # prpporcao matriculas
+# ee[,c('QT_MAT_MED','QT_MAT_MED_INT','tempo_integral')] # check
+
+vv=ee %>% 
+  select(starts_with('IN_MATERIAL')) %>% 
+  select(-IN_MATERIAL_PED_NENHUM)
+ee$soma_MATERIAL_PED=apply(vv, 1, sum, na.rm=T)
+
+vv=ee %>% 
+  select(starts_with('IN_PROF_'))
+ee$soma_PROF_APOIO=apply(vv, 1, sum, na.rm=T)
+
+# filtrar dados -------------------
+
+# deixar apenas escolas estaduais
+ee2 <- ee %>% 
+  filter(DEPENDENCIA=='Estadual')
+
+# selecionar variaveis iniciais
+ee2 <- ee2 %>% 
+  select(taxa_abandono,nivel_socioeconomico,IN_EJA,starts_with('IN_MEDIACAO_'),
+         tem_atendimento_educacional_especializado=TP_AEE,IN_EXAME_SELECAO,
+         adequacao_formacao_docente, esforco_docente, regularidade_docente,
+         IN_MATERIAL_PED_DESPORTIVA:soma_PROF_APOIO, UF=SG_UF) %>% 
+  na.omit()
+
+# tirar dos nomes
+names(ee2)=gsub('IN_','',names(ee2))
+
+# padronizar variaveis para modelos
+ee3 <- ee2 %>% 
+  mutate_if(.predicate = is.numeric, .funs = function(x) as.numeric(scale(x))) %>% 
+  select(-MEDIACAO_PRESENCIAL)
+
+# mostrar dados
+descr=ee2 %>% 
+  select(-adequacao_formacao_docente, -esforco_docente,
+         -regularidade_docente, -nivel_socioeconomico,
+         -soma_MATERIAL_PED, -soma_PROF_APOIO, -UF) %>% 
+  skimr::skim()
+
+descr=descr %>% 
+  select(variavel=skim_variable, percentual=numeric.mean)
+
+descr$percentual[1]=descr$percentual[1] / 100
+descr$percentual = formattable::percent(descr$percentual, digits = 0)
+
+knitr::kable(descr) %>%
+  kableExtra::kable_styling(full_width = F)
+```
+
+Note que 12% das escolas têm EAD, 24% tem tempo integral e 37% tem atendimento educacional especializado. Além disso, embora 97% tenha acesso à internet, apenas 80% disponibiliza a internet para aprendizagem dos alunos. E há 11% de escolas sem nenhum material pedagógico.
+
+# Método
+
+Utilizamos modelos de regressão linear tendo a taxa de abandono escolar como variável resposta. As variáveis acima e mais algumas, 29 ao todo, foram inseridas em um modelo inicial. Esse modelo passou por um processo de otimização, com critérios objetivos (AIC e p), para seleção das variáveis mais associadas ao abandono escolar (mais detalhes no código). As variáveis foram padronizadas para permitir a comparação dos coeficientes dos modelos. 
+
+O método utilizado não permite a inferência de causalidade, como nos métodos experimentais e quase-experimentais. Mas os resultados servem como evidências que podem ser complementadas por outras informações, pela lógica e pela teoria.
+
+```{r}
+# lm1 <- lm(taxa_abandono ~ ., data = ee3)
+# # otimizar modelo segundo AIC
+# lm1 <- step(lm1, trace = FALSE)
+# # ajuste fino retirando variaveis com p-valor alto
+# lm1 <- SignifReg::SignifReg(lm1, direction = "both", criterion = 'p-value')
+# 
+# save(lm1, file = 'lm1.rda')
+load('lm1.rda')
+```
+
+
+# Fatores mais associados ao abandono escolar
+
+A figura abaixo mostra mostra o grau de associação das diferentes variáveis no modelo final, que também inclui o estado (não está na figura mas está no Anexo).
+
+```{r message=FALSE}
+
+# pegar coeficientes do modelo
+cf=coef(lm1)[2:11]
+cf=data.frame(variavel=names(cf), cf)
+cf$cor2='1ajuda'
+cf$cor2[cf$cf>0]='2piora'
+
+# plotar coef
+cf %>% ggplot(aes(x=cf, y= reorder(variavel, desc(variavel)), fill=cor2))+
+  geom_bar(stat = 'identity', width = .7)+
+  scale_fill_manual(values = c('#23d400', '#d40000'))+
+  # scale_y_discrete(limits = rev(levels(cf$variavel)))+
+  labs(x='associação com abandono escolar (coeficiente do modelo)', y=NULL, title = 'Fatores mais associados ao abandono escolar no Brasil')+
+  geom_vline(xintercept=0)+
+  theme_bw()+
+  theme(legend.position = 'none',
+        axis.text.y = element_text(size = 11))
+```
+
+É impressionante como o nível socioeconômico se destaca de todos os outros fatores. Isso significa que, nas escolas com alunos mais pobres, o abandono escolar tende a ser muito maior, mesmo quando controlamos todas as outras variáveis. Em parte, isso reflete limitações da escola e da sociedade, mas também reforça a importância das políticas de apoio e políticas afirmativas para que os alunos não abandonem o Ensino Médio.
+
+O segundo fator mais importante é a proporção de alunos de ensino médio que estudam em tempo integral (no mínimo 7 horas por dia). Esta é uma evidência importante a favor de um dos aspectos do Novo Ensino Médio, que na verdade tem sua origem na meta 6 do [Plano Nacional de Educação](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13005.htm), de 2014. É importante frisar que esses resultados não excluem a possibilidade de que a existência de escolas integrais e não integrais aumente a desigualdade no sistema educacional, o que é outra questão.
+
+Na figura notamos também que os três indicadores sobre professores estão presentes. A adequação da formação e a regularidade docente contribuem para a diminuição do abandono escolar. Já o esforço docente aumenta o abandono, o que mostra a importância de boas condições de trabalho para que o trabalho possa ser bem feito.
+
+------------------------------------------------------------------------
+
+# Educação à Distância e abandono escolar
+
+Como vemos na tabela abaixo, quase todas as escolas com EAD estão no Estado de São Paulo. Exatamente 97% fazendo a conta. E dentro do Estado de São Paulo, 57% das escolas tem EAD. Talvez haja subnotificação em outros estados, mas isso não vem ao caso no momento.
+
+```{r eval=TRUE, message=FALSE}
+
+agg = ee2 %>% 
+  group_by(UF) %>% 
+  summarise(percentual_de_escolas_com_EAD=round(mean(MEDIACAO_EAD, na.rm = T),3),
+            numero_de_escolas_com_EAD=sum(MEDIACAO_EAD, na.rm = T)) %>% 
+  filter(numero_de_escolas_com_EAD!=0)
+
+agg1 = ee2 %>% 
+  summarise(percentual_de_escolas_com_EAD=round(mean(MEDIACAO_EAD, na.rm = T),3),
+            numero_de_escolas_com_EAD=sum(MEDIACAO_EAD, na.rm = T)) %>% 
+  filter(numero_de_escolas_com_EAD!=0) %>% 
+  mutate(UF='Total')
+
+agg1 = bind_rows(agg, agg1)
+
+agg1$percentual_de_escolas_com_EAD = formattable::percent(agg1$percentual_de_escolas_com_EAD, digits = 1)
+
+# prop.table(agg1$mediacao_EAD_soma) # sp=97%
+
+knitr::kable(agg1) %>%
+  kableExtra::kable_styling(full_width = F)
+```
+
+Sendo assim, partindo desses dados, a melhor estratégia para analisar a Educação à Distância é ajustar um modelo apenas para as escolas de São Paulo. Usamos o mesmo método de otimização aplicado para as escolas brasileiras. As variáveis mais associadas ao abandono escolar em São Paulo podem ser vistas na figura abaixo.
+
+```{r message=FALSE}
+
+# filtrar
+ee4 <- ee3 %>%
+  filter(UF=='SP') %>%
+  select(-UF)
+
+# repetir metodo
+
+# lm2 <- lm(taxa_abandono ~ ., data = ee4)
+# # otimizar modelo segundo AIC
+# lm2 <- step(lm2, trace = FALSE)
+# # ajuste fino retirando variaveis com p-valor alto
+# lm2 <- SignifReg::SignifReg(lm2, direction = "both", criterion = 'p-value')
+# 
+# save(lm2, file = 'lm2.rda')
+load('lm2.rda')
+
+# pegar coeficientes
+cf=coef(lm2)[2:9]
+cf=data.frame(variavel=names(cf), cf)
+cf$cor2='1ajuda'
+cf$cor2[cf$cf>0]='2piora'
+
+# plotar coef
+cf %>% ggplot(aes(x=cf, y= reorder(variavel, desc(variavel)), fill=cor2))+
+  geom_bar(stat = 'identity', width = .7)+
+  scale_fill_manual(values = c('#23d400', '#d40000'))+
+  # scale_y_discrete(limits = rev(levels(cf$variavel)))+
+  labs(x='associação com abandono escolar (coeficiente do modelo)', y=NULL, title = 'Fatores mais associados ao abandono escolar em SP')+
+  geom_vline(xintercept=0)+
+  theme_bw()+
+  theme(legend.position = 'none',
+        axis.text.y = element_text(size = 11))
+
+
+```
+
+Curiosamente, o fator mais associado é a presença de um exame de seleção, que pode ser tanto uma prova quanto uma análise de currículo. O que é um pouco natural por um lado, mas por outro lado aponta uma forte lógica de mercado numa rede pública, o que levanta questões.
+
+Note como a mediação EAD está associada ao aumento do abandono escolar. Isso é importante no contexto da reforma do Ensino Médio. Vale lembrar que São Paulo tem uma rede estadual muito madura e autônoma, não dá para dizer que houve problemas de implementação da EAD pela falta de coordenação do Governo Federal, nem tampouco pela pandemia, que impulsionou a EAD como nunca. Não parece se tratar de um problema de implementação, mas sim de concepção.
+
+# Anexo: tabelas com detalhes dos modelos
+
+## Brasil
+
+```{r message=FALSE}
+# mostrar resultados com escalas padronizadas
+sjPlot::tab_model(lm1, show.ci=FALSE)
+```
+
+------------------------------------------------------------------------
+
+## São Paulo
+
+```{r message=FALSE}
+# mostrar resultados com escalas padronizadas
+sjPlot::tab_model(lm2, show.ci=FALSE)
+```

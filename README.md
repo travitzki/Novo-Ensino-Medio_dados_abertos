@@ -10,7 +10,7 @@ Espaço colaborativo para disponibilização e análise de dados abertos, relati
 <td>
 <div style="margin:10px">
 
-[**Abandono escolar nas redes estaduais: evidências para o debate sobre o Novo Ensino Médio**](./estudos/abandono_escolar.html)
+[**Abandono escolar nas redes estaduais: evidências para o debate sobre o Novo Ensino Médio**](./estudos/abandono_escolar_estaduais.html)
   
   Principais achados:
   
